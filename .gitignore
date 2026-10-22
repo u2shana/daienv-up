@@ -1,0 +1,60 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Testing & Coverage
+coverage/
+
+# Production Build Outputs
+dist/
+build/
+output_apk/
+*.apk
+*.aab
+
+# Environment & Secrets (NEVER push API keys or passwords)
+.env
+.env.local
+.env.*.local
+.env.production
+.env.development
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS Files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Android Specific (Local SDK paths, caches, build files)
+android/local.properties
+android/.gradle/
+.gradle/
+**/build/
+android/app/build/
+android/build/
+*.keystore
+*.jks
+
+# IDE & Editor files (Contains local absolute paths & user preferences)
+.idea/
+android/.idea/
+*.iml
+android/*.iml
+android/app/*.iml
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# AI Studio & Temporary Files
+.aistudio/

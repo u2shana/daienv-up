@@ -1,0 +1,6 @@
+{
+  "name": "呆呆面板同步",
+  "description": "专为 Android 移动体验打造的呆呆面板剪贴板环境变量同步工具，支持一键读取系统剪贴板、OpenAPI鉴权与自动创建更新环境变量。",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
