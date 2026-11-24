@@ -94,6 +94,11 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
                         {record.actionType === 'created' ? '自动新建' : '更新覆盖'}
                       </span>
                     )}
+                    {record.autoEnabled && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-950 border border-emerald-800/60 text-emerald-300 font-medium">
+                        已自动启用
+                      </span>
+                    )}
                   </div>
 
                   <div className="flex items-center gap-2 text-slate-500 font-mono text-[11px] tabular-nums">

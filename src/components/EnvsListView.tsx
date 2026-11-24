@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Search, RefreshCw, Check, Copy, ArrowUpRight, AlertCircle, Database } from 'lucide-react';
+import { Search, RefreshCw, Check, Copy, ArrowUpRight, AlertCircle, Database, Power } from 'lucide-react';
 import { EnvItem, PanelConfig } from '../types';
-import { getEnvs } from '../services/daidaiApi';
+import { getEnvs, isEnvDisabled, enableEnv } from '../services/daidaiApi';
 
 interface EnvsListViewProps {
   config: PanelConfig;
@@ -19,6 +19,13 @@ export const EnvsListView: React.FC<EnvsListViewProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [copiedId, setCopiedId] = useState<string | number | null>(null);
+  const [enablingId, setEnablingId] = useState<string | number | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3000);
+  };
 
   const isConfigured = Boolean(config.apiUrl && config.appKey && config.appSecret);
 
@@ -33,6 +40,30 @@ export const EnvsListView: React.FC<EnvsListViewProps> = ({
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleEnableEnv = async (item: EnvItem) => {
+    setEnablingId(item.id);
+    try {
+      const success = await enableEnv(config, item.id);
+      if (success) {
+        showToast(`已成功启用环境变量 [${item.name}]`);
+        // 更新本地列表状态
+        setEnvs((prev) =>
+          prev.map((e) =>
+            e.id === item.id
+              ? { ...e, enabled: true, status: 0, isDisabled: false }
+              : e
+          )
+        );
+      } else {
+        showToast(`启用环境变量 [${item.name}] 失败，请检查面板权限`);
+      }
+    } catch (err) {
+      showToast(`启用失败: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setEnablingId(null);
     }
   };
 
@@ -135,6 +166,7 @@ export const EnvsListView: React.FC<EnvsListViewProps> = ({
         <div className="space-y-2.5">
           {filtered.map((item) => {
             const isCurrentTarget = item.name === config.targetEnvName;
+            const disabled = isEnvDisabled(item);
             return (
               <div
                 key={item.id}
@@ -146,13 +178,22 @@ export const EnvsListView: React.FC<EnvsListViewProps> = ({
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-mono text-sm font-semibold text-slate-100 truncate">
                         {item.name}
                       </span>
                       {isCurrentTarget && (
                         <span className="text-[10px] font-medium text-blue-400 bg-blue-950 border border-blue-800/60 rounded px-1.5 py-0.5">
                           当前目标
+                        </span>
+                      )}
+                      {disabled ? (
+                        <span className="text-[10px] font-medium text-amber-400 bg-amber-950/60 border border-amber-800/60 rounded px-1.5 py-0.5">
+                          已禁用
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-medium text-emerald-400 bg-emerald-950/60 border border-emerald-800/60 rounded px-1.5 py-0.5">
+                          已启用
                         </span>
                       )}
                     </div>
@@ -162,6 +203,22 @@ export const EnvsListView: React.FC<EnvsListViewProps> = ({
                   </div>
 
                   <div className="flex items-center gap-1.5 shrink-0">
+                    {disabled && (
+                      <button
+                        onClick={() => handleEnableEnv(item)}
+                        disabled={enablingId === item.id}
+                        className="flex items-center gap-1 px-2.5 py-1 bg-amber-950/60 hover:bg-emerald-600 hover:text-white border border-amber-800/60 text-amber-300 text-xs font-medium rounded-lg transition active:scale-95 disabled:opacity-50"
+                        title="立即在呆呆面板中启用此环境变量"
+                      >
+                        {enablingId === item.id ? (
+                          <RefreshCw className="w-3 h-3 animate-spin text-emerald-300" />
+                        ) : (
+                          <Power className="w-3 h-3" />
+                        )}
+                        <span>启用</span>
+                      </button>
+                    )}
+
                     <button
                       onClick={() => handleCopyValue(item.value, item.id)}
                       className="p-1.5 text-slate-400 hover:text-slate-200 rounded-lg hover:bg-slate-800 transition"
@@ -194,6 +251,14 @@ export const EnvsListView: React.FC<EnvsListViewProps> = ({
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 bg-slate-800 border border-slate-700 text-slate-100 text-xs px-4 py-2.5 rounded-xl shadow-2xl flex items-center gap-2 animate-fade-in">
+          <AlertCircle className="w-4 h-4 text-blue-400 shrink-0" />
+          <span>{toastMessage}</span>
         </div>
       )}
     </div>

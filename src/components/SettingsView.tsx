@@ -77,6 +77,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       targetEnvName: 'JD_COOKIE',
       remarks: '呆呆剪贴板助手自动更新',
       autoReadOnLaunch: true,
+      autoEnableIfDisabled: true,
       proxyMode: 'auto',
     });
   };
@@ -244,6 +245,33 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             <div
               className={`w-5 h-5 rounded-full bg-white transition-transform ${
                 formData.autoReadOnLaunch ? 'translate-x-5' : 'translate-x-0'
+              }`}
+            />
+          </button>
+        </div>
+
+        {/* Auto-enable toggle */}
+        <div className="flex items-center justify-between py-1 border-t border-slate-800/80 pt-3">
+          <div>
+            <p className="text-xs font-medium text-slate-200">被禁用时自动启用</p>
+            <p className="text-[11px] text-slate-400 mt-0.5">
+              若目标环境变量在面板中处于禁用状态，同步时自动将其恢复启用
+            </p>
+          </div>
+          <button
+            onClick={() =>
+              setFormData({
+                ...formData,
+                autoEnableIfDisabled: formData.autoEnableIfDisabled === false ? true : false,
+              })
+            }
+            className={`w-11 h-6 rounded-full transition-colors relative p-0.5 ${
+              formData.autoEnableIfDisabled !== false ? 'bg-blue-600' : 'bg-slate-800'
+            }`}
+          >
+            <div
+              className={`w-5 h-5 rounded-full bg-white transition-transform ${
+                formData.autoEnableIfDisabled !== false ? 'translate-x-5' : 'translate-x-0'
               }`}
             />
           </button>

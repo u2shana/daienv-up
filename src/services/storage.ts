@@ -10,6 +10,7 @@ export const DEFAULT_CONFIG: PanelConfig = {
   targetEnvName: 'JD_COOKIE',
   remarks: '由呆呆剪贴板助手更新',
   autoReadOnLaunch: true,
+  autoEnableIfDisabled: true,
   proxyMode: 'auto',
 };
 

@@ -50,6 +50,7 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({
     status: 'success' | 'failed';
     message: string;
     actionType?: 'updated' | 'created';
+    autoEnabled?: boolean;
     durationMs: number;
     envName: string;
   } | null>(null);
@@ -109,6 +110,7 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({
         contentLength: clipboardText.length,
         status: 'success',
         actionType: res.action,
+        autoEnabled: res.autoEnabled,
         durationMs,
         detailMessage: res.message,
         fullContent: clipboardText,
@@ -119,6 +121,7 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({
         status: 'success',
         message: res.message,
         actionType: res.action,
+        autoEnabled: res.autoEnabled,
         durationMs,
         envName,
       });
@@ -193,7 +196,11 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-sm">
         <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
           <span>目标环境变量</span>
-          <span className="text-slate-500">不存在将自动新增</span>
+          <span className="text-slate-500">
+            {config.autoEnableIfDisabled !== false
+              ? '不存在自动新增 · 禁用自动启用'
+              : '不存在将自动新增'}
+          </span>
         </div>
 
         {isEditingEnvName ? (
@@ -370,12 +377,21 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({
             )}
             <div className="flex-1 text-xs">
               <div className="flex items-center justify-between font-semibold text-sm">
-                <span>
-                  {lastResult.status === 'success'
-                    ? lastResult.actionType === 'created'
-                      ? '已自动新增环境变量'
-                      : '已成功更新环境变量'
-                    : '同步失败'}
+                <span className="flex items-center gap-1.5 flex-wrap">
+                  <span>
+                    {lastResult.status === 'success'
+                      ? lastResult.actionType === 'created'
+                        ? '已自动新增环境变量'
+                        : lastResult.autoEnabled
+                        ? '已更新并自动恢复启用'
+                        : '已成功更新环境变量'
+                      : '同步失败'}
+                  </span>
+                  {lastResult.autoEnabled && (
+                    <span className="text-[10px] font-normal px-1.5 py-0.5 rounded bg-emerald-900/80 border border-emerald-700/60 text-emerald-300">
+                      已自动启用
+                    </span>
+                  )}
                 </span>
                 <span className="font-mono text-xs tabular-nums text-slate-400 font-normal">
                   {lastResult.durationMs}ms

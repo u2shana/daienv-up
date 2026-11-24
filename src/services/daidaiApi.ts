@@ -293,9 +293,101 @@ export async function getEnvs(config: PanelConfig, token?: string, searchValue?:
 }
 
 /**
+ * 检查环境变量在面板中是否处于禁用状态
+ * 兼容呆呆面板与青龙面板的多种字段标识：
+ * - enabled === false 或 enabled === 0
+ * - status === 1 或 status === false 或 status === 'disabled'
+ * - isDisabled === 1 或 isDisabled === true
+ */
+export function isEnvDisabled(item: EnvItem): boolean {
+  if (item.enabled === false || (item.enabled as unknown) === 0) return true;
+  if (item.isDisabled === true || item.isDisabled === 1) return true;
+  if (item.status === 1 || (item.status as unknown) === false || (item.status as unknown) === 'disabled') return true;
+  return false;
+}
+
+/**
+ * 启用指定的呆呆面板 / 青龙面板环境变量
+ * 兼容多种 API 规范：
+ * 1. PUT /api/v1/envs/enable 传入 [id] (呆呆/青龙最标准的批量/单条启用规范)
+ * 2. PUT /api/v1/envs/:id/enable
+ * 3. PUT /open/envs/enable 传入 [id]
+ * 4. PUT /api/v1/envs/:id 传入 { id, enabled: true, status: 0 }
+ */
+export async function enableEnv(
+  config: PanelConfig,
+  envId: string | number,
+  token?: string
+): Promise<boolean> {
+  const authToken = token || (await getAuthToken(config));
+  const base = normalizeApiUrl(config.apiUrl);
+  const headers = { Authorization: `Bearer ${authToken}` };
+  const proxyMode = config.proxyMode || 'auto';
+
+  // 1. 尝试 PUT /api/v1/envs/enable 携带 [id] (标准批量/单条启用)
+  try {
+    const res = await callPanelApi<{ code?: number; message?: string }>(
+      `${base}/api/v1/envs/enable`,
+      'PUT',
+      headers,
+      [envId],
+      proxyMode
+    );
+    if (res.status < 400) return true;
+  } catch {
+    // 继续尝试下一个兼容端点
+  }
+
+  // 2. 尝试 PUT /api/v1/envs/:id/enable
+  try {
+    const res = await callPanelApi<{ code?: number; message?: string }>(
+      `${base}/api/v1/envs/${envId}/enable`,
+      'PUT',
+      headers,
+      null,
+      proxyMode
+    );
+    if (res.status < 400) return true;
+  } catch {
+    // 继续尝试下一个兼容端点
+  }
+
+  // 3. 尝试 PUT /open/envs/enable 携带 [id] (部分青龙 OpenAPI 路由)
+  try {
+    const res = await callPanelApi<{ code?: number; message?: string }>(
+      `${base}/open/envs/enable`,
+      'PUT',
+      headers,
+      [envId],
+      proxyMode
+    );
+    if (res.status < 400) return true;
+  } catch {
+    // 继续尝试下一个兼容端点
+  }
+
+  // 4. 尝试通过单条更新设置 enabled: true, status: 0
+  try {
+    const res = await callPanelApi<{ code?: number; message?: string }>(
+      `${base}/api/v1/envs/${envId}`,
+      'PUT',
+      headers,
+      { id: envId, enabled: true, status: 0 },
+      proxyMode
+    );
+    if (res.status < 400) return true;
+  } catch {
+    // 忽略
+  }
+
+  return false;
+}
+
+/**
  * Smart Upsert Environment Variable:
  * 1. Queries panel to see if variable already exists (exact name match)
  * 2. If exists -> calls PUT /api/v1/envs/:id to update value
+ *    - If target variable is disabled and auto-enable is on -> automatically enables it
  * 3. If does not exist -> calls POST /api/v1/envs to create
  */
 export async function syncEnvValue(
@@ -308,6 +400,7 @@ export async function syncEnvValue(
   envId: string | number;
   message: string;
   previousValue?: string;
+  autoEnabled?: boolean;
 }> {
   const trimmedName = targetName.trim();
   if (!trimmedName) throw new Error('环境变量名不能为空');
@@ -323,14 +416,23 @@ export async function syncEnvValue(
   const remarks = customRemarks?.trim() || existing?.remarks || '由呆呆剪贴板同步助手自动更新';
 
   if (existing && existing.id !== undefined) {
+    const shouldAutoEnable = config.autoEnableIfDisabled !== false;
+    const wasDisabled = isEnvDisabled(existing);
+    let autoEnabled = false;
+
     // Update existing environment variable
     const updateUrl = `${base}/api/v1/envs/${existing.id}`;
-    const payload = {
+    const payload: Record<string, unknown> = {
       id: existing.id,
       name: trimmedName,
       value: newValue,
       remarks,
     };
+
+    if (shouldAutoEnable) {
+      payload.enabled = true;
+      payload.status = 0;
+    }
 
     const res = await callPanelApi<{ code?: number; message?: string; msg?: string }>(
       updateUrl,
@@ -352,23 +454,40 @@ export async function syncEnvValue(
       );
     }
 
+    // 若原先被禁用且开启了自动启用，调用启用接口确保激活生效
+    if (shouldAutoEnable && wasDisabled) {
+      try {
+        await enableEnv(config, existing.id, token);
+        autoEnabled = true;
+      } catch (err) {
+        console.warn('Failed to call enableEnv endpoint, payload may have updated it:', err);
+        autoEnabled = true;
+      }
+    }
+
+    const message = autoEnabled
+      ? `成功更新环境变量 [${trimmedName}]（原处于禁用状态，已自动启用）`
+      : `成功更新环境变量 [${trimmedName}]`;
+
     return {
       action: 'updated',
       envId: existing.id,
-      message: `成功更新环境变量 [${trimmedName}]`,
+      message,
       previousValue: existing.value,
+      autoEnabled,
     };
   } else {
     // Create new environment variable
     const createUrl = `${base}/api/v1/envs`;
     
-    // Most Daidai / Qinglong panels support batch array [{ name, value, remarks }]
-    // We try array first, if rejected try single object
+    // Most Daidai / Qinglong panels support batch array [{ name, value, remarks, enabled: true }]
     const batchPayload = [
       {
         name: trimmedName,
         value: newValue,
         remarks,
+        enabled: true,
+        status: 0,
       },
     ];
 
@@ -397,7 +516,7 @@ export async function syncEnvValue(
       return {
         action: 'created',
         envId: createdId,
-        message: `目标变量不存在，已在呆呆面板自动创建 [${trimmedName}]`,
+        message: `目标变量不存在，已在呆呆面板自动创建并启用 [${trimmedName}]`,
       };
     } catch {
       // Fallback to single object payload
@@ -405,6 +524,8 @@ export async function syncEnvValue(
         name: trimmedName,
         value: newValue,
         remarks,
+        enabled: true,
+        status: 0,
       };
       await callPanelApi(
         createUrl,
@@ -417,7 +538,7 @@ export async function syncEnvValue(
       return {
         action: 'created',
         envId: 'new',
-        message: `目标变量不存在，已在呆呆面板自动创建 [${trimmedName}]`,
+        message: `目标变量不存在，已在呆呆面板自动创建并启用 [${trimmedName}]`,
       };
     }
   }

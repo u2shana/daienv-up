@@ -5,6 +5,7 @@ export interface PanelConfig {
   targetEnvName: string;
   remarks?: string;
   autoReadOnLaunch: boolean;
+  autoEnableIfDisabled?: boolean;
   proxyMode: 'auto' | 'direct' | 'proxy';
 }
 
@@ -16,6 +17,7 @@ export interface SyncRecord {
   contentLength: number;
   status: 'success' | 'failed';
   actionType?: 'updated' | 'created';
+  autoEnabled?: boolean;
   durationMs: number;
   detailMessage: string;
   fullContent: string;
@@ -26,7 +28,10 @@ export interface EnvItem {
   name: string;
   value: string;
   remarks?: string;
-  status?: number; // 0: enabled, 1: disabled in some panel formats
+  status?: number | boolean | string; // 0: enabled, 1: disabled (青龙/呆呆面板常见规范)
+  enabled?: boolean | number; // 呆呆面板字段 (true: 启用, false: 禁用)
+  isDisabled?: boolean | number;
+  position?: number;
   updatedAt?: string;
   createdAt?: string;
 }
