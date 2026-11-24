@@ -218,6 +218,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               placeholder="由呆呆剪贴板助手自动更新"
               className="w-full bg-slate-950 border border-slate-800 focus:border-blue-500 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none transition"
             />
+            <p className="text-[11px] text-slate-500 mt-1">
+              推送时会自动在备注后附带当前时间，格式如：备注内容 (YYYY-MM-DD HH:mm:ss)
+            </p>
           </div>
         </div>
       </div>

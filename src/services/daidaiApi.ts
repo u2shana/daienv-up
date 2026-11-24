@@ -384,10 +384,50 @@ export async function enableEnv(
 }
 
 /**
+ * 格式化当前时间为 YYYY-MM-DD HH:mm:ss
+ */
+export function formatCurrentTime(date: Date = new Date()): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const seconds = String(date.getSeconds()).padStart(2, '0');
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+}
+
+/**
+ * 构造同步环境变量时附带的备注信息，自动附带当前时间。
+ * - 如果基础备注包含 {time} 占位符，直接替换。
+ * - 自动清理历史已附加的时间戳，避免多次同步产生时间戳堆叠。
+ */
+export function buildSyncRemarks(customRemarks?: string, existingRemarks?: string): string {
+  const timeStr = formatCurrentTime();
+  let base = customRemarks?.trim() || existingRemarks?.trim() || '由呆呆剪贴板助手更新';
+
+  // 支持用户自定义 {time} 占位符
+  if (base.includes('{time}')) {
+    return base.replace(/{time}/g, timeStr);
+  }
+
+  // 清除旧的末尾时间戳（支持 ()、[]、{}、中文括号等包裹或直接跟随的时间戳）
+  base = base
+    .replace(/\s*[([（【]?\d{4}[-/.]\d{2}[-/.]\d{2}\s+\d{2}:\d{2}(?::\d{2})?[)\]）】]?\s*$/, '')
+    .trim();
+
+  if (!base) {
+    base = '由呆呆剪贴板助手更新';
+  }
+
+  return `${base} (${timeStr})`;
+}
+
+/**
  * Smart Upsert Environment Variable:
  * 1. Queries panel to see if variable already exists (exact name match)
  * 2. If exists -> calls PUT /api/v1/envs/:id to update value
  *    - If target variable is disabled and auto-enable is on -> automatically enables it
+ *    - Remarks automatically appended with current timestamp
  * 3. If does not exist -> calls POST /api/v1/envs to create
  */
 export async function syncEnvValue(
@@ -399,6 +439,7 @@ export async function syncEnvValue(
   action: 'updated' | 'created';
   envId: string | number;
   message: string;
+  remarks: string;
   previousValue?: string;
   autoEnabled?: boolean;
 }> {
@@ -413,7 +454,7 @@ export async function syncEnvValue(
   const envs = await getEnvs(config, token, trimmedName);
   const existing = envs.find((item) => item.name === trimmedName);
 
-  const remarks = customRemarks?.trim() || existing?.remarks || '由呆呆剪贴板同步助手自动更新';
+  const remarks = buildSyncRemarks(customRemarks, existing?.remarks);
 
   if (existing && existing.id !== undefined) {
     const shouldAutoEnable = config.autoEnableIfDisabled !== false;
@@ -473,6 +514,7 @@ export async function syncEnvValue(
       action: 'updated',
       envId: existing.id,
       message,
+      remarks,
       previousValue: existing.value,
       autoEnabled,
     };
@@ -517,6 +559,7 @@ export async function syncEnvValue(
         action: 'created',
         envId: createdId,
         message: `目标变量不存在，已在呆呆面板自动创建并启用 [${trimmedName}]`,
+        remarks,
       };
     } catch {
       // Fallback to single object payload
@@ -539,6 +582,7 @@ export async function syncEnvValue(
         action: 'created',
         envId: 'new',
         message: `目标变量不存在，已在呆呆面板自动创建并启用 [${trimmedName}]`,
+        remarks,
       };
     }
   }

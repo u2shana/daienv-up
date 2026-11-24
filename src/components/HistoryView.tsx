@@ -119,6 +119,14 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
                   )}
                 </div>
 
+                {/* Remarks Display */}
+                {record.remarks && (
+                  <div className="text-[11px] text-slate-400 font-mono flex items-center gap-1.5 px-1 truncate">
+                    <span className="text-slate-500">备注:</span>
+                    <span className="truncate text-slate-300">{record.remarks}</span>
+                  </div>
+                )}
+
                 {/* Detail Message if Failed */}
                 {record.detailMessage && !isSuccess && (
                   <p className="text-[11px] text-rose-300/90 leading-tight">

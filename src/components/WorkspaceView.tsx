@@ -51,6 +51,7 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({
     message: string;
     actionType?: 'updated' | 'created';
     autoEnabled?: boolean;
+    remarks?: string;
     durationMs: number;
     envName: string;
   } | null>(null);
@@ -111,6 +112,7 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({
         status: 'success',
         actionType: res.action,
         autoEnabled: res.autoEnabled,
+        remarks: res.remarks,
         durationMs,
         detailMessage: res.message,
         fullContent: clipboardText,
@@ -122,6 +124,7 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({
         message: res.message,
         actionType: res.action,
         autoEnabled: res.autoEnabled,
+        remarks: res.remarks,
         durationMs,
         envName,
       });
@@ -398,8 +401,14 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({
                 </span>
               </div>
               <p className="mt-1 leading-relaxed opacity-90">{lastResult.message}</p>
-              <div className="mt-2 text-[11px] font-mono text-slate-400 flex items-center gap-2">
+              <div className="mt-2 text-[11px] font-mono text-slate-400 flex items-center gap-2 flex-wrap">
                 <span>目标: {lastResult.envName}</span>
+                {lastResult.remarks && (
+                  <>
+                    <span>·</span>
+                    <span className="text-slate-300">备注: {lastResult.remarks}</span>
+                  </>
+                )}
                 <span>·</span>
                 <span>{new Date().toLocaleTimeString()}</span>
               </div>

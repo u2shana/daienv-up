@@ -18,6 +18,7 @@ export interface SyncRecord {
   status: 'success' | 'failed';
   actionType?: 'updated' | 'created';
   autoEnabled?: boolean;
+  remarks?: string;
   durationMs: number;
   detailMessage: string;
   fullContent: string;
